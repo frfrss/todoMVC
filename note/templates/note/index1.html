@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<section class="todoapp">
+<p>{{todo.title}}</p>
+{% for todo in todos %}
+  <script>
+    todo = {{todo.title}}
+console.log('todo:',todo)
+</script>
+{% endfor %}
+</body>
+</html>
+<script>
+  var app = new Vue({
+    addTodo: function () {
+      this.todos.push({
+        id: todoStorage.uid++,
+        title: value,
+        completed: false
+      })
+    }
+  }
+  )
+  app.$mount('.todoapp')
+</script>

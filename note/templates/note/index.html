@@ -19,7 +19,7 @@
 
   <script type="text/javascript" src="https://unpkg.com/vue@latest/dist/vue.js"></script>
   <link rel="stylesheet" type="text/css" href="https://unpkg.com/todomvc-app-css@2.2.0/index.css">
-
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <style id="compiled-css" type="text/css">
     [v-cloak] { display: none; }
   </style>
@@ -28,7 +28,7 @@
   <!-- TODO: Missing CoffeeScript 2 -->
 
   <script type="text/javascript">//<![CDATA[
-
+console.log('ooooooooooooooooooooooooooooooooooooooooooooooooooo')
   window.onload=function(){
 
 // Full spec-compliant TodoMVC with localStorage persistence
@@ -36,13 +36,35 @@
 
 // localStorage persistence
     var STORAGE_KEY = 'todos-vuejs-2.0'
+
+      var lists = {{ todos | safe }};
+      // var todoss = [];
+      var list = [];
+      console.log('lists[0]:',lists[0]);
+      console.log(typeof (lists[0]));
+      for (i = 0;i < lists.length;i++){
+          list[i] = JSON.parse(lists[i]);
+      }
+      // list = JSON.parse(lists);
+      // list.push(
+      //         {
+      //           id:1,
+      //           title:'ggggggg',
+      //           completed: false
+      //         });
+      // console.log('todos:',todoss);
+      // console.log(Object.prototype.toString.call(todoss[0]));
+      console.log('lists:',lists);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+
     var todoStorage = {
       fetch: function () {
         var todos = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
         todos.forEach(function (todo, index) {
           todo.id = index
         })
-        todoStorage.uid = todos.length
+        todoStorage.uid = todos.length;
+          console.log('todos[0]:',todos[0]);
         return todos
       },
       save: function (todos) {
@@ -98,12 +120,35 @@
         },
         allDone: {
           get: function () {
+              console.log('tick:this.todos',this.todos);
+              this.todos.forEach(function (todo) {
+                if (todo) {
+                  if (todo.completed) {
+                    return axios
+                            .post('/note/tick', {
+                                      id: todo.id,
+                                      completed: true
+                                    }
+                            )
+                  } else {
+                    return axios
+                            .post('/note/tick', {
+                                      id: todo.id,
+                                      completed: false
+                                    }
+                            )
+
+                  }
+                }
+              });
             return this.remaining === 0
           },
           set: function (value) {
             this.todos.forEach(function (todo) {
-              todo.completed = value
-            })
+              todo.completed = value;
+
+            });
+
           }
         }
       },
@@ -118,22 +163,40 @@
       // note there's no DOM manipulation here at all.
       methods: {
         addTodo: function () {
-          var value = this.newTodo && this.newTodo.trim()
-          if (!value) {
-            return
-          }
+            var value = this.newTodo && this.newTodo.trim()
+            if (!value) {
+                return
+            }
           this.todos.push({
             id: todoStorage.uid++,
             title: value,
             completed: false
           })
-          this.newTodo = ''
+          this.newTodo = '';
+            axios
+                .post('/note/save_todo',{
+                    id: todoStorage.uid,
+                    title: value,
+                    completed: false
+                });
+          console.log('save_todo:value:',value);
+          console.log('save_todo:id:',todoStorage.uid);
+          //wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+
         },
 
         removeTodo: function (todo) {
-          this.todos.splice(this.todos.indexOf(todo), 1)
+          this.todos.splice(this.todos.indexOf(todo), 1);
+            axios
+                .post('/note/delete',{
+                    id:todo.id,
+                    title: todo.title
+                });
+            console.log('delete:todos:',this.todos);
+            console.log('delete:todo.id:',todo.id);
+            console.log('this.todos.indexof:',this.todos.indexOf(todo))
         },
-
+        //wowowoowooowowowowowowoowwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
         editTodo: function (todo) {
           this.beforeEditCache = todo.title
           this.editedTodo = todo
@@ -143,11 +206,19 @@
           if (!this.editedTodo) {
             return
           }
+
           this.editedTodo = null
           todo.title = todo.title.trim()
           if (!todo.title) {
             this.removeTodo(todo)
           }
+            console.log('change:todo:',todo);
+            axios
+                .post('/note/change',{
+                    id: todo.id,
+                    title: todo.title,
+                })
+
         },
 
         cancelEdit: function (todo) {
@@ -157,6 +228,8 @@
 
         removeCompleted: function () {
           this.todos = filters.active(this.todos)
+            axios
+                .get('/note/rm')
         }
       },
 
@@ -199,16 +272,13 @@
 <section class="todoapp">
   <header class="header">
     <h1>todos</h1>
-    <form action="{% url 'note:vote' %}" method="post" >
-      {% csrf_token %}
       <input class="new-todo"
              autofocus autocomplete="off"
              placeholder="What needs to be done?"
              v-model="newTodo"
-             name="todokk"
              @keyup.enter="addTodo">
+    </form>
   </header>
-  {% for todo in todos %}
   <section class="main" v-show="todos.length" v-cloak>
     <input id="toggle-all" class="toggle-all" type="checkbox" v-model="allDone">
     <label for="toggle-all"></label>
@@ -221,7 +291,8 @@
           <input class="toggle" type="checkbox" v-model="todo.completed">
           {% verbatim %}
           <label @dblclick="editTodo(todo)">{{ todo.title }}</label>
-          <button class="destroy" @click="removeTodo(todo)"></button>
+          {% endverbatim %}
+          <button class="destroy" name="dltt" @click="removeTodo(todo)"></button>
         </div>
         <input class="edit" type="text"
                v-model="todo.title"
@@ -234,29 +305,27 @@
   </section>
   <footer class="footer" v-show="todos.length" v-cloak>
     <span class="todo-count">
+           {% verbatim %}
       <strong>{{ remaining }}</strong> {{ remaining | pluralize }} left
+               {% endverbatim %}
     </span>
-
-    {% endverbatim %}
     <ul class="filters">
       <li><a href="#/all" :class="{ selected: visibility == 'all' }">All</a></li>
       <li><a href="#/active" :class="{ selected: visibility == 'active' }">Active</a></li>
       <li><a href="#/completed" :class="{ selected: visibility == 'completed' }">Completed</a></li>
     </ul>
-    <form action="{% url 'note:clear' %}" method="post" >
-      {% csrf_token %}
-      <button class="clear-completed" @click="removeCompleted" v-show="todos.length > remaining">
+      <button type="button" class="clear-completed" @click="removeCompleted" v-show="todos.length > remaining">
         Clear completed
       </button>
   </footer>
 </section>
-{% endfor %}
 <footer class="info">
   <p>Double-click to edit a todo</p>
   <p>Written by <a href="http://evanyou.me">Evan You</a></p>
   <p>Part of <a href="http://todomvc.com">TodoMVC</a></p>
 </footer>
 <script>
+    console.log('yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy')
   // tell the embed parent frame the height of the content
   if (window.parent && window.parent.parent){
     window.parent.parent.postMessage(["resultsFrame", {
@@ -267,6 +336,8 @@
 
   // always overwrite window.name, in case users try to set it manually
   window.name = "result"
+
+  // console.log(localStorage.getItem(STORAGE_KEY, JSON.stringify(todoss)));
 </script>
 </body>
 </html>
